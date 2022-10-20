@@ -1,9 +1,20 @@
 import re
 from urllib.parse import urlparse
+from bs4 import BeautifulSoup
+from time import sleep
+
+sites_seen = set()
 
 def scraper(url, resp):
-    links = extract_next_links(url, resp)
-    return [link for link in links if is_valid(link)]
+    print('#######', url)
+    links = [link for link in extract_next_links(url, resp) if is_valid(link) and not link in sites_seen]
+
+    for link in set(links):
+        print(link)
+        sites_seen.add(link)
+    print()
+
+    return links
 
 def extract_next_links(url, resp):
     # Implementation required.
@@ -15,7 +26,17 @@ def extract_next_links(url, resp):
     #         resp.raw_response.url: the url, again
     #         resp.raw_response.content: the content of the page!
     # Return a list with the hyperlinks (as strings) scrapped from resp.raw_response.content
-    return list()
+
+    if (resp.status != 200):
+        return []
+
+    soup = BeautifulSoup(resp.raw_response.content, 'lxml')
+    links = []
+
+    for link in soup.find_all('a'):
+        links.append(link.get('href'))
+   
+    return links
 
 def is_valid(url):
     # Decide whether to crawl this url or not. 
@@ -23,8 +44,14 @@ def is_valid(url):
     # There are already some conditions that return False.
     try:
         parsed = urlparse(url)
+
+        valid_domain_pattern = re.compile(".*((\.ics\.uci\.edu\/)|(\.cs\.uci\.edu\/)|(\.informatics\.uci\.edu\/)|(\.stat\.uci\.edu\/)|(today\.uci\.edu\/department\/information_computer_sciences)).*")
+        
+        if valid_domain_pattern.fullmatch(parsed.netloc) != None:
+            return False
         if parsed.scheme not in set(["http", "https"]):
             return False
+
         return not re.match(
             r".*\.(css|js|bmp|gif|jpe?g|ico"
             + r"|png|tiff?|mid|mp2|mp3|mp4"
