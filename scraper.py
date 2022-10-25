@@ -1,20 +1,75 @@
 import re
 from urllib.parse import urlparse
 from bs4 import BeautifulSoup
-from time import sleep
+
+
+'''
+- Duplicate content (Kang)
+- Avoid large files
+- Infinate traps (Avery)
+- Avoid sites with no info (Vincent)
+- Implement tokenizer/parse words (Kang)
+- Count unique pages
+- Find longest page in terms of words
+- Find 50 most common words
+- Count subdomains in ics.uci.edu
+
+sites to ignore:
+
+just picture:
+https://duttgroup.ics.uci.edu/2017/12/05/imans-goodbye-lunch/
+https://duttgroup.ics.uci.edu/2017/12/20/2017-end-of-the-year-gathering/
+https://duttgroup.ics.uci.edu/2017/09/26/2017-fall-quarter-welcoming-bbq/
+https://duttgroup.ics.uci.edu/author/maityb/
+
+error 404:
+https://www.ics.uci.edu/404.php
+https://luci.ics.uci.edu/LUCIinterace.html#bioFaculty&djp3
+https://studentcouncil.ics.uci.edu/clubs.html
+http://calendar.ics.uci.edu/calendar.php
+https://www.today.uci.edu/department/information_computer_sciences
+https://iasl.ics.uci.edu/people/damiri
+https://ftp.ics.uci.edu/pub/ietf/http
+http://www.ics.uci.edu/pub/ietf/http/rfc1945.html
+http://www.ics.uci.edu/pub/ietf/webdav
+https://www.ics.uci.edu/~jossher
+http://evoke.ics.uci.edu/?page_id=229
+
+
+logins:
+https://duttgroup.ics.uci.edu/wp-login.php?redirect_to=https%3A%2F%2Fduttgroup.ics.uci.edu%2F2017%2F12%2F20%2F2017-end-of-the-year-gathering%2F
+https://intranet.ics.uci.edu
+
+https://duttgroup.ics.uci.edu/wp-login.php?redirect_to=https%3A%2F%2Fduttgroup.ics.uci.edu%2F2017%2F12%2F05%2Fimans-goodbye-lunch%2F
+https://duttgroup.ics.uci.edu/wp-login.php?redirect_to=https%3A%2F%2Fduttgroup.ics.uci.edu%2F2017%2F12%2F20%2F2017-end-of-the-year-gathering%2F
+
+
+blacklist:
+https://intranet.ics.uci.edu
+https://tippersweb.ics.uci.edu
+
+not interesting:
+https://www.stat.uci.edu/ucis-graduate-programs-shine-in-u-s-news-world-report-rankings/
+https://tippersweb.ics.uci.edu/covid19/d/oKgkWMDGk/cs-dashboard-mobile?refresh=30s&orgId=1
+
+for the site:
+    https://cml.ics.uci.edu/[something]
+    check the cclass="entry-content" to see if there is any content other than the header
+
+
+'''
 
 sites_seen = set()
 
-def scraper(url, resp):
-    print('#######', url)
-    links = [link for link in extract_next_links(url, resp) if is_valid(link) and not link in sites_seen]
 
-    for link in set(links):
-        print(link)
+def scraper(url, resp):
+    links = [link for link in extract_next_links(url, resp) if is_valid(link)]
+
+    for link in links:
         sites_seen.add(link)
-    print()
 
     return links
+
 
 def extract_next_links(url, resp):
     # Implementation required.
@@ -38,6 +93,7 @@ def extract_next_links(url, resp):
    
     return links
 
+
 def is_valid(url):
     # Decide whether to crawl this url or not. 
     # If you decide to crawl it, return True; otherwise return False.
@@ -45,11 +101,14 @@ def is_valid(url):
     try:
         parsed = urlparse(url)
 
-        valid_domain_pattern = re.compile(".*((\.ics\.uci\.edu\/)|(\.cs\.uci\.edu\/)|(\.informatics\.uci\.edu\/)|(\.stat\.uci\.edu\/)|(today\.uci\.edu\/department\/information_computer_sciences)).*")
-        
-        if valid_domain_pattern.fullmatch(parsed.netloc) != None:
+        valid_domain_pattern = re.compile(".*((\.ics\.uci\.edu\/)|(\.cs\.uci\.edu\/)|(\.informatics\.uci\.edu\/)|(\.stat\.uci\.edu\/)|(today\.uci\.edu\/department\/information_computer_sciences\/)).*")
+        valid_domain_pattern2 = re.compile(".*((\.ics\.uci\.edu)|(\.cs\.uci\.edu)|(\.informatics\.uci\.edu)|(\.stat\.uci\.edu)|(today\.uci\.edu\/department\/information_computer_sciences)).*")
+
+        if url in sites_seen:
             return False
-        if parsed.scheme not in set(["http", "https"]):
+        elif parsed.scheme not in set(["http", "https"]):
+            return False
+        elif valid_domain_pattern.fullmatch(str(parsed.netloc)) == None and valid_domain_pattern2.fullmatch(str(parsed.netloc)) == None:
             return False
 
         return not re.match(
