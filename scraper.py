@@ -34,6 +34,7 @@ http://www.ics.uci.edu/pub/ietf/http/rfc1945.html
 http://www.ics.uci.edu/pub/ietf/webdav
 https://www.ics.uci.edu/~jossher
 http://evoke.ics.uci.edu/?page_id=229
+http://psearch.ics.uci.edu/about.html
 
 
 logins:
@@ -54,7 +55,7 @@ https://tippersweb.ics.uci.edu/covid19/d/oKgkWMDGk/cs-dashboard-mobile?refresh=3
 
 for the site:
     https://cml.ics.uci.edu/[something]
-    check the cclass="entry-content" to see if there is any content other than the header
+    check the class="entry-content" to see if there is any content other than the header
 
 
 '''
