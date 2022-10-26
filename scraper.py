@@ -21,6 +21,7 @@ https://duttgroup.ics.uci.edu/2017/12/05/imans-goodbye-lunch/
 https://duttgroup.ics.uci.edu/2017/12/20/2017-end-of-the-year-gathering/
 https://duttgroup.ics.uci.edu/2017/09/26/2017-fall-quarter-welcoming-bbq/
 https://duttgroup.ics.uci.edu/author/maityb/
+https://wics.ics.uci.edu/4 --> https://wics.ics.uci.edu/*
 
 error 404:
 https://www.ics.uci.edu/404.php
@@ -38,16 +39,16 @@ http://psearch.ics.uci.edu/about.html
 
 
 logins:
-https://duttgroup.ics.uci.edu/wp-login.php?redirect_to=https%3A%2F%2Fduttgroup.ics.uci.edu%2F2017%2F12%2F20%2F2017-end-of-the-year-gathering%2F
-https://intranet.ics.uci.edu
+https://duttgroup.ics.uci.edu/wp-login.php?redirect_to=https%3A%2F%2Fduttgroup.ics.uci.edu%2F2017%2F12%2F20%2F2017-end-of-the-year-gathering%2F {done}
+https://intranet.ics.uci.edu {done}
 
 https://duttgroup.ics.uci.edu/wp-login.php?redirect_to=https%3A%2F%2Fduttgroup.ics.uci.edu%2F2017%2F12%2F05%2Fimans-goodbye-lunch%2F
 https://duttgroup.ics.uci.edu/wp-login.php?redirect_to=https%3A%2F%2Fduttgroup.ics.uci.edu%2F2017%2F12%2F20%2F2017-end-of-the-year-gathering%2F
 
 
 blacklist:
-https://intranet.ics.uci.edu
-https://tippersweb.ics.uci.edu
+https://intranet.ics.uci.edu {done}
+https://tippersweb.ics.uci.edu {done}
 
 not interesting:
 https://www.stat.uci.edu/ucis-graduate-programs-shine-in-u-s-news-world-report-rankings/
@@ -57,7 +58,8 @@ for the site:
     https://cml.ics.uci.edu/[something]
     check the class="entry-content" to see if there is any content other than the header
 
-
+calendar:
+https://wics.ics.uci.edu/events/category/wics-meeting-dbh-5011/2022-09 {done}
 '''
 
 sites_seen = set()
@@ -101,6 +103,12 @@ def is_valid(url):
     # There are already some conditions that return False.
     try:
         parsed = urlparse(url)
+# https://www.ics.uci.edu/community/news/student_blogs/blog_posts/Nguyen_Dang-February2017.php
+        split_url = parsed.split("/")
+        base_url = '' #something to get the base url
+        # if split_url.size > 7 and base_url in sites_seen:
+        #     return False
+
 
         valid_domain_pattern = re.compile(".*((\.ics\.uci\.edu\/)|(\.cs\.uci\.edu\/)|(\.informatics\.uci\.edu\/)|(\.stat\.uci\.edu\/)|(today\.uci\.edu\/department\/information_computer_sciences\/)).*")
         valid_domain_pattern2 = re.compile(".*((\.ics\.uci\.edu)|(\.cs\.uci\.edu)|(\.informatics\.uci\.edu)|(\.stat\.uci\.edu)|(today\.uci\.edu\/department\/information_computer_sciences)).*")
@@ -111,6 +119,9 @@ def is_valid(url):
             return False
         elif valid_domain_pattern.fullmatch(str(parsed.netloc)) == None and valid_domain_pattern2.fullmatch(str(parsed.netloc)) == None:
             return False
+        elif "login" in str(url) or "intranet" in str(url) or "tippersweb" in str(url) or "wics-meeting-dbh" in str(url):
+            return False
+        
 
         return not re.match(
             r".*\.(css|js|bmp|gif|jpe?g|ico"
