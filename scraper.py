@@ -1,17 +1,22 @@
 import re
+import hashlib
+import tokenizer
+from collections import defaultdict
 from urllib.parse import urlparse
 from bs4 import BeautifulSoup
 
+from custom_logger import get_logger
+
 
 '''
-- Duplicate content (Kang)
+- Duplicate content (Kang) (DONE)
 - Avoid large files
 - Infinate traps (Avery)
 - Avoid sites with no info (Vincent)
-- Implement tokenizer/parse words (Kang)
-- Count unique pages
-- Find longest page in terms of words
-- Find 50 most common words
+- Implement tokenizer/parse words (Kang) (DONE)
+- Count unique pages (DONE)
+- Find longest page in terms of words (Kang) (DONE)
+- Find 50 most common words (Kang) (DONE)
 - Count subdomains in ics.uci.edu
 
 sites to ignore:
@@ -22,6 +27,7 @@ https://duttgroup.ics.uci.edu/2017/12/20/2017-end-of-the-year-gathering/
 https://duttgroup.ics.uci.edu/2017/09/26/2017-fall-quarter-welcoming-bbq/
 https://duttgroup.ics.uci.edu/author/maityb/
 https://wics.ics.uci.edu/4 --> https://wics.ics.uci.edu/*
+
 
 error 404:
 https://www.ics.uci.edu/404.php
@@ -46,13 +52,22 @@ https://duttgroup.ics.uci.edu/wp-login.php?redirect_to=https%3A%2F%2Fduttgroup.i
 https://duttgroup.ics.uci.edu/wp-login.php?redirect_to=https%3A%2F%2Fduttgroup.ics.uci.edu%2F2017%2F12%2F20%2F2017-end-of-the-year-gathering%2F
 
 
+traps:
+https://wics.ics.uci.edu/events/
+    - Contains calendar that goes to prev day that contains empty content.
+https://www.informatics.uci.edu/files/pdf/InformaticsBrochure-March2018
+    - PDF, very large
+
+
 blacklist:
 https://intranet.ics.uci.edu {done}
 https://tippersweb.ics.uci.edu {done}
 
+
 not interesting:
 https://www.stat.uci.edu/ucis-graduate-programs-shine-in-u-s-news-world-report-rankings/
 https://tippersweb.ics.uci.edu/covid19/d/oKgkWMDGk/cs-dashboard-mobile?refresh=30s&orgId=1
+any url with a share=facebook or share=twitter
 
 for the site:
     https://cml.ics.uci.edu/[something]
@@ -62,7 +77,22 @@ calendar:
 https://wics.ics.uci.edu/events/category/wics-meeting-dbh-5011/2022-09 {done}
 '''
 
-sites_seen = set()
+
+VALID_DOMAIN_PATTERN = re.compile(".*((\.ics\.uci\.edu\/)|(\.cs\.uci\.edu\/)|(\.informatics\.uci\.edu\/)|(\.stat\.uci\.edu\/)|(today\.uci\.edu\/department\/information_computer_sciences\/)).*")
+VALID_DOMAIN_PATTERN2 = re.compile(".*((\.ics\.uci\.edu)|(\.cs\.uci\.edu)|(\.informatics\.uci\.edu)|(\.stat\.uci\.edu)|(today\.uci\.edu\/department\/information_computer_sciences)).*")
+ICS_PATTERN = re.compile("ics.uci.edu")
+
+sites_seen = set() # Sites that were added to the frontier.
+site_hashes = set() # Hashes for sites that have been downloaded.
+
+word_freqs = defaultdict(int) # For all downloaded pages.
+
+highest_word_count = -1 # Used to store the longest page.
+longest_page_url = ''
+
+blacklist_logger = get_logger("blacklist") # Logger that logs urls that are not valid
+duplicate_logger = get_logger("duplicate") # Logger that logs pages with duplicate content.
+longest_page_logger = get_logger("longest_page") # Logger that logs when the longest page has been found.
 
 
 def scraper(url, resp):
@@ -88,13 +118,35 @@ def extract_next_links(url, resp):
     if (resp.status != 200):
         return []
 
-    soup = BeautifulSoup(resp.raw_response.content, 'lxml')
-    links = []
+    site_hash = hashlib.sha256(resp.raw_response.content).hexdigest()
 
-    for link in soup.find_all('a'):
-        links.append(link.get('href'))
-   
-    return links
+    if (site_hash in site_hashes):
+        duplicate_logger.info(f"{url} has duplicate content.")
+        return []
+
+    else:
+        site_hashes.add(site_hash) # Add content hash to set.
+
+        soup = BeautifulSoup(resp.raw_response.content, "lxml") # Parse html content.
+
+        # Tokenize words in page text, keeping count and updating frequencies.
+        word_count = 0
+
+        for word in tokenizer._tokenize_string(soup.get_text()):
+            word_freqs[word] += 1
+            word_count += 1
+
+        # See if page is longer then the current longest page.
+        global longest_page_url
+        global highest_word_count
+
+        if word_count > highest_word_count:
+            longest_page_logger.info(f"{url} is now the longest page with {word_count} words.")
+            longest_page_url = url
+            highest_word_count = word_count
+
+        # Return all links (with fragments stripped).
+        return [strip_fragment(link.get("href")) for link in soup.find_all("a")]
 
 
 def is_valid(url):
@@ -104,24 +156,20 @@ def is_valid(url):
     try:
         parsed = urlparse(url)
 # https://www.ics.uci.edu/community/news/student_blogs/blog_posts/Nguyen_Dang-February2017.php
-        split_url = parsed.split("/")
+        # split_url = parsed.split("/")
         base_url = '' #something to get the base url
         # if split_url.size > 7 and base_url in sites_seen:
         #     return False
-
-
-        valid_domain_pattern = re.compile(".*((\.ics\.uci\.edu\/)|(\.cs\.uci\.edu\/)|(\.informatics\.uci\.edu\/)|(\.stat\.uci\.edu\/)|(today\.uci\.edu\/department\/information_computer_sciences\/)).*")
-        valid_domain_pattern2 = re.compile(".*((\.ics\.uci\.edu)|(\.cs\.uci\.edu)|(\.informatics\.uci\.edu)|(\.stat\.uci\.edu)|(today\.uci\.edu\/department\/information_computer_sciences)).*")
 
         if url in sites_seen:
             return False
         elif parsed.scheme not in set(["http", "https"]):
             return False
-        elif valid_domain_pattern.fullmatch(str(parsed.netloc)) == None and valid_domain_pattern2.fullmatch(str(parsed.netloc)) == None:
+        elif VALID_DOMAIN_PATTERN.fullmatch(url) == None and VALID_DOMAIN_PATTERN.fullmatch(url) == None:
             return False
         elif "login" in str(url) or "intranet" in str(url) or "tippersweb" in str(url) or "wics-meeting-dbh" in str(url):
+            blacklist_logger.info(f"{url} is in the blacklist.")
             return False
-        
 
         return not re.match(
             r".*\.(css|js|bmp|gif|jpe?g|ico"
@@ -136,3 +184,7 @@ def is_valid(url):
     except TypeError:
         print ("TypeError for ", parsed)
         raise
+
+
+def strip_fragment(url):
+    return url.split("#")[0]
