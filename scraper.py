@@ -81,6 +81,10 @@ https://wics.ics.uci.edu/events/category/wics-meeting-dbh-5011/2022-09 {done}
 VALID_DOMAIN_PATTERN = re.compile(".*((\.ics\.uci\.edu\/)|(\.cs\.uci\.edu\/)|(\.informatics\.uci\.edu\/)|(\.stat\.uci\.edu\/)|(today\.uci\.edu\/department\/information_computer_sciences\/)).*")
 VALID_DOMAIN_PATTERN2 = re.compile(".*((\.ics\.uci\.edu)|(\.cs\.uci\.edu)|(\.informatics\.uci\.edu)|(\.stat\.uci\.edu)|(today\.uci\.edu\/department\/information_computer_sciences)).*")
 ICS_PATTERN = re.compile("ics.uci.edu")
+BLACKLIST_PATTERN = re.compile(
+    r"login|intranet|tippersweb|wics-meeting-dbh|wics.ics.uci.edu/events/|action=download|" +
+    r"share=facebook|share=twitter|pdf"
+)
 
 sites_seen = set() # Sites that were added to the frontier.
 site_hashes = set() # Hashes for sites that have been downloaded.
@@ -167,7 +171,7 @@ def is_valid(url):
             return False
         elif VALID_DOMAIN_PATTERN.fullmatch(url) == None and VALID_DOMAIN_PATTERN.fullmatch(url) == None:
             return False
-        elif "login" in str(url) or "intranet" in str(url) or "tippersweb" in str(url) or "wics-meeting-dbh" in str(url):
+        elif BLACKLIST_PATTERN.search(url) != None:
             blacklist_logger.info(f"{url} is in the blacklist.")
             return False
 
