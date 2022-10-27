@@ -187,4 +187,7 @@ def is_valid(url):
 
 
 def strip_fragment(url):
-    return url.split("#")[0]
+    if url != None:
+        return url.split("#")[0]
+    else:
+        return url
