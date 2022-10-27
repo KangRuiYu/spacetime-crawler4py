@@ -56,7 +56,7 @@ def _tokenize_string(string):
     token_chars = []
 
     for char in string.lower():
-        if char.isalnum():
+        if char.isalnum() or char == "'":
             token_chars.append(char)
         else:
             if len(token_chars) != 0: yield ''.join(token_chars)

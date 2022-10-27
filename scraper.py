@@ -17,7 +17,8 @@ from custom_logger import get_logger
 - Count unique pages (DONE)
 - Find longest page in terms of words (Kang) (DONE)
 - Find 50 most common words (Kang) (DONE)
-- Count subdomains in ics.uci.edu
+- Count subdomains in ics.uci.edu (DONE)
+- Filter out stop words for 50 most common words (Avery)(DONE)
 
 sites to ignore:
 
@@ -86,7 +87,22 @@ BLACKLIST_PATTERN = re.compile(
     r"share=facebook|share=twitter|pdf"
 )
 
+stop_words = set(["a", "about", "above", "after","again", "against", "all", "am", "an", "and", "any",\
+    "are", "aren't", "as", "at","be","because","been","before","being","below","between","both","but","by",\
+    "can't","cannot","could","couldn't","did","didn't", "do", "does", "doesn't", "doing", "don't", "down" \
+    "during", "each", "few", "for","from","further","had","hadn't","has","hasn't","have","haven't",\
+    "having","he","he'd","he'll","he's","her","here","here's","hers","herself","him","himself","his", \
+    "how","how's","i","i'd","i'll","i'm","i've","if","in","into","is","isn't","it","it's","its","itself", "let's", \
+    "me","more", "most","mustn't","my","myself","no","nor","not","of","off","on","once","only","or","other","ought", \
+    "our","ours","ourselves","out","over","own","same","shan't","she","she'd","she'll","she's","should","shouldn't","so",\
+    "some","such",'than','that',"that's","the","their","theirs","them","themselves","then","there","there's","these",\
+    "they","they'd","they'll","they're","they've","this","those","through","to","too","under","until","up","very",\
+    "was","wasn't","we","we'd","we'll","we're","we've","were","weren't","what","what's","when","when's","where","where's",\
+    "which","while","who","who's","whom","why","why's","with","won't","would","wouldn't","you","you'd","you'll","you're",\
+    "you've","your","yours","yourself","yourselves"])
+
 sites_seen = set() # Sites that were added to the frontier.
+ics_sites = defaultdict(int) # Sites seen that are ics sites.
 site_hashes = set() # Hashes for sites that have been downloaded.
 
 word_freqs = defaultdict(int) # For all downloaded pages.
@@ -97,6 +113,8 @@ longest_page_url = ''
 blacklist_logger = get_logger("blacklist") # Logger that logs urls that are not valid
 duplicate_logger = get_logger("duplicate") # Logger that logs pages with duplicate content.
 longest_page_logger = get_logger("longest_page") # Logger that logs when the longest page has been found.
+trap_logger = get_logger("trap")
+little_words_logger = get_logger("little_words")
 
 
 def scraper(url, resp):
@@ -104,6 +122,11 @@ def scraper(url, resp):
 
     for link in links:
         sites_seen.add(link)
+
+        # Check for ics sub domains
+        domain = urlparse(link).hostname
+        if ICS_PATTERN.search(domain) != None:
+            ics_sites[domain] += 1
 
     return links
 
@@ -137,8 +160,9 @@ def extract_next_links(url, resp):
         word_count = 0
 
         for word in tokenizer._tokenize_string(soup.get_text()):
-            word_freqs[word] += 1
             word_count += 1
+            if not word in stop_words:
+                word_freqs[word] += 1
 
         # See if page is longer then the current longest page.
         global longest_page_url
@@ -149,8 +173,12 @@ def extract_next_links(url, resp):
             longest_page_url = url
             highest_word_count = word_count
 
-        # Return all links (with fragments stripped).
-        return [strip_fragment(link.get("href")) for link in soup.find_all("a")]
+        # Return links (fragments stripped) for page only if it has more than 100 words.
+        if word_count >= 100:
+            return [strip_fragment(link.get("href")) for link in soup.find_all("a")]
+        else:
+            little_words_logger.info(f"{url} only has {word_count} words")
+            return []
 
 
 def is_valid(url):
@@ -159,21 +187,35 @@ def is_valid(url):
     # There are already some conditions that return False.
     try:
         parsed = urlparse(url)
-# https://www.ics.uci.edu/community/news/student_blogs/blog_posts/Nguyen_Dang-February2017.php
-        # split_url = parsed.split("/")
-        base_url = '' #something to get the base url
-        # if split_url.size > 7 and base_url in sites_seen:
+        # split_url = url.split("/")
+        if parsed.hostname == None:
+            return False
+        parsed.path.split("/")
+        base_url = parsed.scheme + "://" + parsed.hostname + "/".join(parsed.path.split("/")[:6])
+        parsed.scheme + "://" + parsed.hostname + "/".join(parsed.path.split("/")[:6])
+        #base_url = split_url[0::5].join('/') #something to get the base url
+        # if split_url.size >= 7 and base_url in sites_seen:
         #     return False
+
+        # url_robot = url + "/robot.txt"
+        # 
+
+
+
 
         if url in sites_seen:
             return False
         elif parsed.scheme not in set(["http", "https"]):
             return False
-        elif VALID_DOMAIN_PATTERN.fullmatch(url) == None and VALID_DOMAIN_PATTERN.fullmatch(url) == None:
+        elif VALID_DOMAIN_PATTERN.fullmatch(parsed.hostname) == None and VALID_DOMAIN_PATTERN2.fullmatch(parsed.hostname) == None:
             return False
         elif BLACKLIST_PATTERN.search(url) != None:
             blacklist_logger.info(f"{url} is in the blacklist.")
             return False
+        elif base_url in sites_seen and len(parsed.path.split("/")) >= 7:
+            trap_logger.info(f"{url} is a trap")
+            return False
+        
 
         return not re.match(
             r".*\.(css|js|bmp|gif|jpe?g|ico"

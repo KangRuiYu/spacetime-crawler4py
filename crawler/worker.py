@@ -45,6 +45,11 @@ class Worker(Thread):
         # Log longest page
         results_logger.info(f"{scraper.longest_page_url} is the longest page with {scraper.highest_word_count} words")
 
+        # Log all ics subdomains
+        results_logger.info(f"Found {len(scraper.ics_sites)} ics subdomains.")
+        for subdomain, pages in sorted(scraper.ics_sites.items()):
+            results_logger.info(f"{subdomain}:{pages}")
+
         # Log word freqs list
         for word, freq in sorted(scraper.word_freqs.items(), key=lambda x: x[1], reverse=True):
             results_logger.info(f"{word}:{freq}")
