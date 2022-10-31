@@ -9,73 +9,17 @@ from custom_logger import get_logger
 
 
 '''
+TODO
 - Duplicate content (Kang) (DONE)
-- Avoid large files
-- Infinate traps (Avery)
-- Avoid sites with no info (Vincent)
+- Avoid large files (DONE)
+- Infinate traps (Avery) (DONE)
+- Avoid sites with no info (Vincent) (DONE)
 - Implement tokenizer/parse words (Kang) (DONE)
 - Count unique pages (DONE)
 - Find longest page in terms of words (Kang) (DONE)
 - Find 50 most common words (Kang) (DONE)
 - Count subdomains in ics.uci.edu (DONE)
 - Filter out stop words for 50 most common words (Avery)(DONE)
-
-sites to ignore:
-
-just picture:
-https://duttgroup.ics.uci.edu/2017/12/05/imans-goodbye-lunch/
-https://duttgroup.ics.uci.edu/2017/12/20/2017-end-of-the-year-gathering/
-https://duttgroup.ics.uci.edu/2017/09/26/2017-fall-quarter-welcoming-bbq/
-https://duttgroup.ics.uci.edu/author/maityb/
-https://wics.ics.uci.edu/4 --> https://wics.ics.uci.edu/*
-
-
-error 404:
-https://www.ics.uci.edu/404.php
-https://luci.ics.uci.edu/LUCIinterace.html#bioFaculty&djp3
-https://studentcouncil.ics.uci.edu/clubs.html
-http://calendar.ics.uci.edu/calendar.php
-https://www.today.uci.edu/department/information_computer_sciences
-https://iasl.ics.uci.edu/people/damiri
-https://ftp.ics.uci.edu/pub/ietf/http
-http://www.ics.uci.edu/pub/ietf/http/rfc1945.html
-http://www.ics.uci.edu/pub/ietf/webdav
-https://www.ics.uci.edu/~jossher
-http://evoke.ics.uci.edu/?page_id=229
-http://psearch.ics.uci.edu/about.html
-
-
-logins:
-https://duttgroup.ics.uci.edu/wp-login.php?redirect_to=https%3A%2F%2Fduttgroup.ics.uci.edu%2F2017%2F12%2F20%2F2017-end-of-the-year-gathering%2F {done}
-https://intranet.ics.uci.edu {done}
-
-https://duttgroup.ics.uci.edu/wp-login.php?redirect_to=https%3A%2F%2Fduttgroup.ics.uci.edu%2F2017%2F12%2F05%2Fimans-goodbye-lunch%2F
-https://duttgroup.ics.uci.edu/wp-login.php?redirect_to=https%3A%2F%2Fduttgroup.ics.uci.edu%2F2017%2F12%2F20%2F2017-end-of-the-year-gathering%2F
-
-
-traps:
-https://wics.ics.uci.edu/events/
-    - Contains calendar that goes to prev day that contains empty content.
-https://www.informatics.uci.edu/files/pdf/InformaticsBrochure-March2018
-    - PDF, very large
-
-
-blacklist:
-https://intranet.ics.uci.edu {done}
-https://tippersweb.ics.uci.edu {done}
-
-
-not interesting:
-https://www.stat.uci.edu/ucis-graduate-programs-shine-in-u-s-news-world-report-rankings/
-https://tippersweb.ics.uci.edu/covid19/d/oKgkWMDGk/cs-dashboard-mobile?refresh=30s&orgId=1
-any url with a share=facebook or share=twitter
-
-for the site:
-    https://cml.ics.uci.edu/[something]
-    check the class="entry-content" to see if there is any content other than the header
-
-calendar:
-https://wics.ics.uci.edu/events/category/wics-meeting-dbh-5011/2022-09 {done}
 '''
 
 
@@ -84,10 +28,10 @@ VALID_DOMAIN_PATTERN2 = re.compile(".*((\.ics\.uci\.edu)|(\.cs\.uci\.edu)|(\.inf
 ICS_PATTERN = re.compile("ics.uci.edu")
 BLACKLIST_PATTERN = re.compile(
     r"login|intranet|tippersweb|wics-meeting-dbh|wics.ics.uci.edu/events/|action=download|" +
-    r"share=facebook|share=twitter|pdf"
+    r"share=facebook|share=twitter|pdf|\.java|\.py|\.scm|\.r|\.m|\.bib|\.pptx|\.ppsx|ical=1"
 )
 
-stop_words = set(["a", "about", "above", "after","again", "against", "all", "am", "an", "and", "any",\
+stop_words = {"a", "about", "above", "after","again", "against", "all", "am", "an", "and", "any",\
     "are", "aren't", "as", "at","be","because","been","before","being","below","between","both","but","by",\
     "can't","cannot","could","couldn't","did","didn't", "do", "does", "doesn't", "doing", "don't", "down" \
     "during", "each", "few", "for","from","further","had","hadn't","has","hasn't","have","haven't",\
@@ -99,7 +43,7 @@ stop_words = set(["a", "about", "above", "after","again", "against", "all", "am"
     "they","they'd","they'll","they're","they've","this","those","through","to","too","under","until","up","very",\
     "was","wasn't","we","we'd","we'll","we're","we've","were","weren't","what","what's","when","when's","where","where's",\
     "which","while","who","who's","whom","why","why's","with","won't","would","wouldn't","you","you'd","you'll","you're",\
-    "you've","your","yours","yourself","yourselves"])
+    "you've","your","yours","yourself","yourselves"}
 
 sites_seen = set() # Sites that were added to the frontier.
 ics_sites = defaultdict(int) # Sites seen that are ics sites.
@@ -113,8 +57,8 @@ longest_page_url = ''
 blacklist_logger = get_logger("blacklist") # Logger that logs urls that are not valid
 duplicate_logger = get_logger("duplicate") # Logger that logs pages with duplicate content.
 longest_page_logger = get_logger("longest_page") # Logger that logs when the longest page has been found.
-trap_logger = get_logger("trap")
-little_words_logger = get_logger("little_words")
+little_words_logger = get_logger("little_words") # Logger that logs pages with too little words.
+# trap_logger = get_logger("trap")
 
 
 def scraper(url, resp):
@@ -187,35 +131,26 @@ def is_valid(url):
     # There are already some conditions that return False.
     try:
         parsed = urlparse(url)
-        # split_url = url.split("/")
-        if parsed.hostname == None:
-            return False
-        parsed.path.split("/")
-        base_url = parsed.scheme + "://" + parsed.hostname + "/".join(parsed.path.split("/")[:6])
-        parsed.scheme + "://" + parsed.hostname + "/".join(parsed.path.split("/")[:6])
-        #base_url = split_url[0::5].join('/') #something to get the base url
-        # if split_url.size >= 7 and base_url in sites_seen:
+        domain = str(parsed.hostname)
+
+        # if parsed.hostname == None:
         #     return False
-
-        # url_robot = url + "/robot.txt"
-        # 
-
-
-
+        # parsed.path.split("/")
+        # base_url = parsed.scheme + "://" + parsed.hostname + "/".join(parsed.path.split("/")[:6])
+        # parsed.scheme + "://" + parsed.hostname + "/".join(parsed.path.split("/")[:6])
 
         if url in sites_seen:
             return False
         elif parsed.scheme not in set(["http", "https"]):
             return False
-        elif VALID_DOMAIN_PATTERN.fullmatch(parsed.hostname) == None and VALID_DOMAIN_PATTERN2.fullmatch(parsed.hostname) == None:
+        elif VALID_DOMAIN_PATTERN.fullmatch(domain) == None and VALID_DOMAIN_PATTERN2.fullmatch(domain) == None:
             return False
         elif BLACKLIST_PATTERN.search(url) != None:
             blacklist_logger.info(f"{url} is in the blacklist.")
             return False
-        elif base_url in sites_seen and len(parsed.path.split("/")) >= 7:
-            trap_logger.info(f"{url} is a trap")
-            return False
-        
+        # elif base_url in sites_seen and len(parsed.path.split("/")) >= 7: # Doesnt work right now
+        #     trap_logger.info(f"{url} is a trap")
+        #     return False
 
         return not re.match(
             r".*\.(css|js|bmp|gif|jpe?g|ico"
